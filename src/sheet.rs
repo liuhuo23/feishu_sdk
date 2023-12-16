@@ -4,6 +4,7 @@ use reqwest::blocking::Client;
 use reqwest::header::HeaderMap;
 use serde_json::{json, Value};
 use std::fmt::Display;
+use std::rc::Rc;
 
 use crate::auth::Auth;
 
@@ -12,7 +13,7 @@ const SHEET_URL: &str = "https://open.feishu.cn/open-apis/sheets/v2/spreadsheets
 pub struct FeishuSheet {
     sheet_id: String,
     sheet_token: String,
-    client: Client,
+    client: Rc<Client>,
     header: HeaderMap,
 }
 
@@ -27,11 +28,14 @@ impl FeishuSheet {
         FeishuSheet {
             sheet_token: token_res.to_string(),
             sheet_id: id_res.to_string(),
-            client: client,
+            client: Rc::new(client),
             header: auth.get_header(),
         }
     }
-
+    pub fn write_line(&self, range: &str, value: Vec<Value>) {
+        let values: Vec<Vec<Value>> = vec![value];
+        self.write(range, values);
+    }
     pub fn write(&self, range: &str, value: Vec<Vec<Value>>) {
         let json_str = format!(
             r#"{{
@@ -81,6 +85,53 @@ impl FeishuSheet {
         match res {
             Ok(resp) => resp.json().unwrap(),
             Err(_) => panic!("发送失败！"),
+        }
+    }
+
+    pub fn add_sheet(&self, sheet_title: &str) -> FeishuSheet {
+        let url = format!(
+            "https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/{spreadsheetToken}/sheets_batch_update",
+            spreadsheetToken = self.sheet_token
+        );
+        let value = json!({
+          "requests": [
+            {
+              "addSheet": {
+                "properties": {
+                  "title": sheet_title,
+                  "index": 0
+                }
+              }
+            }
+          ]
+        });
+        let res = self
+            .client
+            .post(url)
+            .headers(self.header.clone())
+            .json(&value)
+            .send();
+        match res {
+            Ok(resp) => {
+                let value: Value = resp.json().unwrap();
+                if value["code"] != 0 {
+                    error!("{}", value);
+                    panic!("创建表返回失败")
+                }
+                debug!("{}", value);
+                let sheet_id: String = value["data"]["replies"][0]["addSheet"]["properties"]
+                    ["sheetId"]
+                    .as_str()
+                    .unwrap()
+                    .to_string();
+                FeishuSheet {
+                    sheet_token: self.sheet_token.clone(),
+                    client: self.client.clone(),
+                    sheet_id,
+                    header: self.header.clone(),
+                }
+            }
+            Err(_) => panic!("创建表失败"),
         }
     }
 }
