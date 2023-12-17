@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::fmt::Display;
 use std::rc::Rc;
 
-use crate::auth::Auth;
+use super::auth::Auth;
 
 const SHEET_URL: &str = "https://open.feishu.cn/open-apis/sheets/v2/spreadsheets/";
 

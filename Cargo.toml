@@ -2,6 +2,7 @@
 name = "feishu_sdk"
 version = "0.1.0"
 edition = "2021"
+authors = ["liuhuo"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -12,9 +13,16 @@ serde_json = "1.0"
 log = "0.4.0"
 env_logger = "0.10.1"
 regex = "1.10.2"
+tokio = { version = "1", features = ["full"] }
+
 
 [dev-dependencies]
 dotenv = "*"
+
+[features]
+default = ["blocking"]
+blocking = []
+
 
 [[example]]
 name = "blocking"

@@ -1,14 +1,11 @@
-mod auth;
-mod sheet;
-#[allow(unused_imports)]
-pub fn add(left: usize, right: usize) -> usize {
-    left + right
-}
+#[cfg(feature = "blocking")]
+pub mod blocking;
 
+#[allow(unused_imports)]
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{auth::Auth, sheet::FeishuSheetBuild};
+    use crate::blocking::{auth::Auth, sheet::FeishuSheetBuild};
     use dotenv::dotenv;
     use log::{debug, info};
     use serde_json::json;
@@ -19,12 +16,6 @@ mod tests {
             .filter_level(log::LevelFilter::Debug)
             .is_test(true)
             .try_init();
-    }
-
-    #[test]
-    fn it_works() {
-        let result = add(2, 2);
-        assert_eq!(result, 4);
     }
 
     #[test]
