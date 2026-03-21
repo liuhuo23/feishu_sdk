@@ -1,8 +1,10 @@
 use log::debug;
-use reqwest::header::{self, HeaderMap};
+use reqwest::header::{self, HeaderMap, HeaderValue};
 use reqwest::Client;
 use serde_json::Value;
 use std::collections::HashMap;
+
+use crate::error::FeishuError;
 
 const FEISHU_BASE_URL: &str = "https://open.feishu.cn/open-apis/";
 
@@ -18,31 +20,30 @@ impl Auth {
     /// ```rust
     /// let auth = Auth::new(&app_id, &app_key);
     /// ```
-    pub async fn new(app_id: &str, app_key: &str) -> Self {
-        let access_token = get_tenant_access_token(app_id, app_key).await;
-        debug!("{}", access_token);
-        Auth {
+    pub async fn new(app_id: &str, app_key: &str) -> Result<Self, FeishuError> {
+        let access_token = get_tenant_access_token(app_id, app_key).await?;
+        debug!("tenant access token acquired");
+        Ok(Auth {
             app_id: app_id.to_string(),
             app_key: app_key.to_string(),
             access_token: access_token,
-        }
+        })
     }
 
-    pub fn get_header(&self) -> HeaderMap {
+    pub fn get_header(&self) -> Result<HeaderMap, FeishuError> {
         let mut headermap = HeaderMap::new();
-        headermap.insert(
-            header::AUTHORIZATION,
-            format!("Bearer {}", self.access_token).parse().unwrap(),
-        );
+        let authorization = HeaderValue::from_str(&format!("Bearer {}", self.access_token))
+            .map_err(|err| FeishuError::Header(err.to_string()))?;
+        headermap.insert(header::AUTHORIZATION, authorization);
         headermap.insert(
             header::CONTENT_TYPE,
-            "application/json; charset=utf-8".parse().unwrap(),
+            HeaderValue::from_static("application/json; charset=utf-8"),
         );
-        return headermap;
+        Ok(headermap)
     }
 }
 
-async fn get_tenant_access_token(app_id: &str, app_key: &str) -> String {
+async fn get_tenant_access_token(app_id: &str, app_key: &str) -> Result<String, FeishuError> {
     let client = Client::new();
     let mut map = HashMap::new();
     map.insert("app_id", app_id);
@@ -54,15 +55,23 @@ async fn get_tenant_access_token(app_id: &str, app_key: &str) -> String {
         ))
         .json(&map)
         .send()
-        .await
-        .unwrap();
-    let res: Value = resp.json().await.unwrap();
-    if !res.get("tenant_access_token").unwrap().is_string() {
-        panic!("没有获取token");
+        .await?;
+    let res: Value = resp.json().await?;
+    let code = res
+        .get("code")
+        .and_then(Value::as_i64)
+        .ok_or(FeishuError::MissingField("code"))?;
+    if code != 0 {
+        let msg = res
+            .get("msg")
+            .and_then(Value::as_str)
+            .unwrap_or("unknown error")
+            .to_string();
+        return Err(FeishuError::Api { code, msg });
     }
-    let res = res.get("tenant_access_token").unwrap().as_str();
-    match res {
-        Some(v) => v.to_string(),
-        _ => panic!("获取为空"),
-    }
+    let token = res
+        .get("tenant_access_token")
+        .and_then(Value::as_str)
+        .ok_or(FeishuError::MissingField("tenant_access_token"))?;
+    Ok(token.to_string())
 }

@@ -7,12 +7,11 @@ authors = ["liuhuo"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-reqwest = { version = "0.11.22", optional = true, features = ["json"] }
+reqwest = { version = "0.11.22", optional = true, default-features = false, features = ["json", "rustls-tls"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = { version = "1.0" }
 log = "0.4.0"
 env_logger = "0.10.1"
-regex = "1.10.2"
 tokio = { version = "1", features = ["full"] }
 
 
@@ -26,7 +25,7 @@ json = ['reqwest']
 
 [[example]]
 name = "blocking"
-path = "examples/blocking.rs"
+path = "examples/feishu_write.rs"
 required-features = ["blocking"]
 
 [[example]]
