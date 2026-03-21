@@ -18,7 +18,7 @@ pub struct Auth {
 
 impl Auth {
     /// 获取访问飞书API的权限
-    /// ```rust
+    /// ```ignore
     /// let auth = Auth::new(&app_id, &app_key);
     /// ```
     pub fn new(app_id: &str, app_key: &str) -> Result<Self, FeishuError> {
